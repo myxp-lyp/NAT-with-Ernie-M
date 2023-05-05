@@ -28,6 +28,7 @@ from fairseq.data import (
 from fairseq.data.indexed_dataset import get_available_dataset_impl
 from fairseq.dataclass import ChoiceEnum, FairseqDataclass
 from fairseq.tasks import FairseqTask, register_task
+from sacrebleu.metrics import BLEU
 
 
 EVAL_BLEU_ORDER = 4
@@ -419,12 +420,14 @@ class TranslationTask(FairseqTask):
                     import inspect
                     import sacrebleu
 
-                    fn_sig = inspect.getfullargspec(sacrebleu.compute_bleu)[0]
+                    fn_sig = inspect.getfullargspec(BLEU.compute_bleu)[0]
+                    #fn_sig = inspect.getfullargspec(sacrebleu.compute_bleu)[0]
                     if "smooth_method" in fn_sig:
                         smooth = {"smooth_method": "exp"}
                     else:
                         smooth = {"smooth": "exp"}
-                    bleu = sacrebleu.compute_bleu(
+                    bleu = BLEU.compute_bleu(
+                    #bleu = sacrebleu.compute_bleu(
                         correct=meters["_bleu_counts"].sum,
                         total=meters["_bleu_totals"].sum,
                         sys_len=meters["_bleu_sys_len"].sum,
