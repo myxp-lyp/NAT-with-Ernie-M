@@ -357,8 +357,9 @@ class VanillaDecoder(FairseqNATDecoder):
             x = torch.bmm(attn_weight, src_embd)
 
             if hasattr(self.args, 'input_transform') and self.args.input_transform:
-                embed = self.embed_tokens.weight.detach()
-                embed = torch.index_select(embed, 0, self.lang_limit).transpose(0, 1)
+                #embed = self.embed_tokens.weight.detach()
+                embed = self.embed_tokens.weight.detach().transpose(0,1)
+                #embed = torch.index_select(embed, 0, self.lang_limit).transpose(0, 1)
 
                 x = self.q_proj(x)
                 x = torch.matmul(x, embed.unsqueeze(0))
