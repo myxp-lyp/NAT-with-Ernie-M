@@ -1,0 +1,255 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+
+
+
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            //"program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/generate.py",
+            "program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/train.py",
+            //"program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/CAMLM_test.py",
+            "python": "/data/yl7622/anaconda3/envs/yl_NAT/bin/python",
+            "cwd":"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/",
+            "env":{
+                "CUDA_VISIBLE_DEVICES":"2,3,4,5,6,7",
+            },
+            /*
+
+            "args":[ 
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin",
+
+                "--path", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_LBPE/checkpoint_best.pt", "--user-dir", "dad_plugins",
+                "--task", "translation_lev", "--remove-bpe", "--max-sentences", "20", "--source-lang", "de", "--target-lang", "en", 
+                "--quiet", "--iter-decode-max-iter", "0", "--iter-decode-eos-penalty", "0", "--iter-decode-with-beam", "1",
+                "--gen-subset", "test", "--results-path", "generation_save/dadCAMLM_LBPE",
+            
+            ],*/
+            
+            "args":[
+                
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt/bin",
+                //"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/nihirref",
+                //"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30kBertEn/bin", 
+                //"--task", "CAMLM", "--criterion", "CAMLM_loss", 
+                //"--arch", "CAMLM", 
+                //"--generatedict", "True",
+                "--freezeCAMLM",
+                "--task", "translation_lev", "--criterion", "nat_loss", 
+                "--arch", "vanilla_nat", 
+                "--label-smoothing", "0.1",
+                "--optimizer", "adam", "--adam-betas", "(0.9,0.999)", "--adam-eps", "1e-6", //"--clip-norm", "1.0",
+                "--lr-scheduler", "inverse_sqrt",//"polynomial_decay", 
+                "--lr", "1e-4", "--warmup-updates", "4000", 
+                //"--total-num-update", "10000", 
+                "--max-tokens","4096","--dropout","0.1",
+                "--max-source-positions","512", "--max-target-positions", "512", "--max-update", "30000000", "--seed", "0", "--clip-norm", "5",
+                "--encoder-layers", "6", "--encoder-embed-dim", "512", "--decoder-layers", "6", "--decoder-embed-dim", "512", "--fp16",
+                "--apply-bert-init", "--activation-fn", "gelu", "--user-dir", "dad_plugins", "--encoder-learned-pos",
+                
+                "--src-embedding-copy", "--pred-length-offset", "--log-interval", "1000", 
+                "--noise", "full_mask", "--share-all-embeddings",
+                "--choose-data", "deenmul", "--input-transform", "--eval-bleu-print-samples",
+                "--warmup-init-lr" ,"1e-7", "--stop-min-lr", "1e-9",
+                "--weight-decay", "0.01",
+                
+                
+                "--eval-bleu", "--eval-bleu-args", "{\"iter_decode_max_iter\": 0, \"iter_decode_winth_beam\": 1}",
+                "--eval-tokenized-bleu", "--eval-bleu-remove-bpe", "--best-checkpoint-metric", "bleu", 
+                "--maximize-best-checkpoint-metric", "--decoder-learned-pos", "--encoder-learned-pos",
+
+                "--eval-bleu-print-samples",
+                "--curriculum-type", "nat",
+                "--save-dir", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new_seed/CAMLM_wmt_freeze",
+                "--reset-optimizer", "--validate-interval-updates", "4",
+
+                "--CAMLMload", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_wmt/checkpoint_best.pt",
+            
+            ]
+            
+            //"console": "integratedTerminal",
+            //"justMyCode": true
+        },
+        {
+            "name": "Train CAMLM",
+            "type": "python",
+            "request": "launch",
+            //"program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/generate.py",
+            "program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/train.py",
+            //"program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/CAMLM_test.py",
+            "python": "/data/yl7622/anaconda3/envs/yl_NAT/bin/python",
+            "cwd":"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/",
+            "env":{
+                "CUDA_VISIBLE_DEVICES":"6",
+            },
+            /*
+
+            "args":[ 
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin",
+
+                "--path", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_LBPE/checkpoint_best.pt", "--user-dir", "dad_plugins",
+                "--task", "translation_lev", "--remove-bpe", "--max-sentences", "20", "--source-lang", "de", "--target-lang", "en", 
+                "--quiet", "--iter-decode-max-iter", "0", "--iter-decode-eos-penalty", "0", "--iter-decode-with-beam", "1",
+                "--gen-subset", "test", "--results-path", "generation_save/dadCAMLM_LBPE",
+            
+            ],*/
+            
+            "args":[
+                
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt_lbpe/bin",
+                //"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/nihirref",
+                //"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30kBertEn/bin", 
+                "--task", "CAMLM", "--criterion", "CAMLM_loss", 
+                "--arch", "CAMLM", 
+                
+               // "--label-smoothing", "0.1",
+                "--optimizer", "adam", "--adam-betas", "(0.9,0.999)", "--adam-eps", "1e-6", //"--clip-norm", "1.0",
+                "--lr-scheduler", "inverse_sqrt",//"polynomial_decay", 
+                "--lr", "1e-4", "--warmup-updates", "4000", 
+                //"--total-num-update", "10000", 
+                "--max-tokens","2048","--dropout","0.1",
+                "--max-source-positions","200", "--max-target-positions", "200", "--max-update", "300000", "--seed", "0", "--clip-norm", "5",
+                "--encoder-layers", "6", "--encoder-embed-dim", "512", "--decoder-layers", "6", "--decoder-embed-dim", "512", "--fp16",
+                "--apply-bert-init", "--activation-fn", "gelu", "--user-dir", "dad_plugins", "--encoder-learned-pos",
+                /*
+                "--src-embedding-copy", "--pred-length-offset", "--log-interval", "1000", 
+                "--noise", "full_mask", "--share-all-embeddings",
+                "--choose-data", "deenmul", "--input-transform", "--eval-bleu-print-samples",
+                "--warmup-init-lr" ,"1e-7", "--stop-min-lr", "1e-9",
+                "--weight-decay", "0.01",
+                
+                
+                "--eval-bleu", "--eval-bleu-args", "{\"iter_decode_max_iter\": 0, \"iter_decode_winth_beam\": 1}",
+                "--eval-tokenized-bleu", "--eval-bleu-remove-bpe", "--best-checkpoint-metric", "bleu", 
+                "--maximize-best-checkpoint-metric",// "--decoder-learned-pos", "--encoder-learned-pos",
+
+                "--eval-bleu-print-samples",
+                "--curriculum-type", "nat",
+                "--save-dir", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLMLBEP_test",
+                "--reset-optimizer",
+*/
+               // "--CAMLMload", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4/checkpoint_best.pt",
+            
+            ]
+            
+            //"console": "integratedTerminal",
+            //"justMyCode": true
+        },
+        {
+            "name": "CAMLMTest",
+            "type": "python",
+            "request": "launch",
+            
+            "program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/CAMLM_test.py",
+            "python": "/data/yl7622/anaconda3/envs/yl_NAT/bin/python",
+            "cwd":"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/",
+            "env":{
+                "CUDA_VISIBLE_DEVICES":"6",
+            },
+            
+            
+            "args":[
+                
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt_lbpe/bin",
+              
+                "--task", "CAMLM", "--criterion", "CAMLM_loss", 
+                "--arch", "CAMLM", 
+               
+                "--optimizer", "adam", "--adam-betas", "(0.9,0.999)", "--adam-eps", "1e-6", //"--clip-norm", "1.0",
+                "--lr-scheduler", "inverse_sqrt",//"polynomial_decay", 
+                "--lr", "1e-4", "--warmup-updates", "4000", 
+                //"--total-num-update", "10000", 
+                "--max-tokens","2048","--dropout","0.1",
+                "--max-source-positions","512", "--max-target-positions", "512", "--max-update", "300000", "--seed", "0", "--clip-norm", "5",
+                "--encoder-layers", "6", "--encoder-embed-dim", "512", "--decoder-layers", "6", "--decoder-embed-dim", "512", "--fp16",
+                "--apply-bert-init", "--activation-fn", "gelu", "--user-dir", "dad_plugins", "--encoder-learned-pos",
+                
+                
+                "--weight-decay", "0.01",
+                
+            
+                "--maximize-best-checkpoint-metric",// "--decoder-learned-pos", "--encoder-learned-pos",
+
+
+               // "--CAMLMload", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4/checkpoint_best.pt",
+            
+            ]
+            
+            //"console": "integratedTerminal",
+            //"justMyCode": true
+        },
+        {
+            "name": "TSNE",
+            "type": "python",
+            "request": "launch",
+            //"program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/generate.py",
+            "program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/TSNE.py",
+            //"program": "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/fairseq_cli/CAMLM_test.py",
+            "python": "/data/yl7622/anaconda3/envs/Bert_venv/bin/python",
+            "cwd":"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/",
+            "env":{
+                "CUDA_VISIBLE_DEVICES":"0",
+            },
+            /*
+
+            "args":[ 
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin",
+
+                "--path", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_LBPE/checkpoint_best.pt", "--user-dir", "dad_plugins",
+                "--task", "translation_lev", "--remove-bpe", "--max-sentences", "20", "--source-lang", "de", "--target-lang", "en", 
+                "--quiet", "--iter-decode-max-iter", "0", "--iter-decode-eos-penalty", "0", "--iter-decode-with-beam", "1",
+                "--gen-subset", "test", "--results-path", "generation_save/dadCAMLM_LBPE",
+            
+            ],*/
+            
+            "args":[
+                
+                "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt/bin",
+                //"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/nihirref",
+                //"/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30kBertEn/bin", 
+                //"--task", "CAMLM", "--criterion", "CAMLM_loss", 
+                //"--arch", "CAMLM", 
+                //"--generatedict", "True",
+                "--task", "translation_lev", "--criterion", "nat_loss", 
+                "--arch", "vanilla_nat", 
+                "--label-smoothing", "0.1",
+                "--optimizer", "adam", "--adam-betas", "(0.9,0.999)", "--adam-eps", "1e-6", //"--clip-norm", "1.0",
+                "--lr-scheduler", "inverse_sqrt",//"polynomial_decay", 
+                "--lr", "1e-4", "--warmup-updates", "4000", 
+                //"--total-num-update", "10000", 
+                "--max-tokens","4096","--dropout","0.1",
+                "--max-source-positions","512", "--max-target-positions", "512", "--max-update", "30000000", "--seed", "0", "--clip-norm", "5",
+                "--encoder-layers", "6", "--encoder-embed-dim", "512", "--decoder-layers", "6", "--decoder-embed-dim", "512", "--fp16",
+                "--apply-bert-init", "--activation-fn", "gelu", "--user-dir", "dad_plugins", "--encoder-learned-pos",
+                
+                "--src-embedding-copy", "--pred-length-offset", "--log-interval", "1000", 
+                "--noise", "full_mask", "--share-all-embeddings",
+                "--choose-data", "deenmul", "--input-transform", "--eval-bleu-print-samples",
+                "--warmup-init-lr" ,"1e-7", "--stop-min-lr", "1e-9",
+                "--weight-decay", "0.01",
+                
+                
+                "--eval-bleu", "--eval-bleu-args", "{\"iter_decode_max_iter\": 0, \"iter_decode_winth_beam\": 1}",
+                "--eval-tokenized-bleu", "--eval-bleu-remove-bpe", "--best-checkpoint-metric", "bleu", 
+                "--maximize-best-checkpoint-metric", "--decoder-learned-pos", "--encoder-learned-pos",
+
+               // "--eval-bleu-print-samples",
+               // "--curriculum-type", "nat",
+                //"--save-dir", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new_seed/CAMLM_wmt",
+               // "--reset-optimizer", "--validate-interval-updates", "4"
+
+               // "--CAMLMload", "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4/checkpoint_best.pt",
+            
+            ]
+            
+            //"console": "integratedTerminal",
+            //"justMyCode": true
+        },
+    ]
+   
+}

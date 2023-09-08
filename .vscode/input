@@ -1,0 +1,572 @@
+input_dir=/data/yl7622/NAT-with-Ernie-M/data/wmt_lbpe
+data_dir=data-bin/wmt_lbpe/bin
+src=de
+tgt=en
+python3 fairseq_cli/preprocess.py  --joined-dictionary --source-lang ${src} --target-lang ${tgt} --trainpref ${input_dir}/train \
+    --validpref ${input_dir}/valid  --testpref ${input_dir}/test --destdir ${data_dir}/ \
+    --workers 32 #--srcdict ${input_dir}/dict.${src}.txt --tgtdict ${input_dir}/dict.${tgt}.txt
+
+	
+
+DATA="../data/tok"
+SRC_LANG='de' #Source Language
+TGT_LANG='en' #Target Language
+TOKENIZER_TYPE='moses' #
+BPE_TYPE='subword_nmt'
+DICTIONARY_SIZE=5000
+fairseq-preprocess --source-lang $SRC_LANG --target-lang $TGT_LANG \
+        --trainpref "$DATA/train"  \
+        --validpref "$DATA/valid" \
+        --testpref "$DATA/test" \
+        --bpe $BPE_TYPE \
+        --nwordstgt $DICTIONARY_SIZE --nwordssrc $DICTIONARY_SIZE \
+        --destdir "data-bin/mul_test/bin" \
+        --tokenizer $TOKENIZER_TYPE \
+		--joined-dictionary
+
+
+CUDA_VISIBLE_DEVICES=0 \
+python3 fairseq_cli/generate.py data-bin/wmt14_ende_distill_ori/bin --path save/wmt_ori_newadam/checkpoint_best.pt --user-dir dad_plugins \
+    --task translation_lev --remove-bpe --max-sentences 20 --source-lang de --target-lang en \
+    --quiet --iter-decode-max-iter 0 --iter-decode-eos-penalty 0 --iter-decode-with-beam 1 --gen-subset test --results-path generation_save/wmt_ori_newadam
+
+
+input_dir=../data/tok/
+data_dir=data-bin/multi30kBertEn_2/bin
+src=de
+tgt=en
+python3 fairseq_cli/preprocess.py  --source-lang ${src} --target-lang ${tgt} --trainpref ${input_dir}/train \
+    --validpref ${input_dir}/valid --testpref ${input_dir}/test --destdir ${data_dir}/ \
+    --workers 32 --srcdict ${input_dir}/dict.${src}.txt --tgtdict ${input_dir}/dict.${tgt}.txt \
+	--thresholdtgt 0 --thresholdsrc 0 
+	#--joined-dictionary
+
+CUDA_VISIBLE_DEVICES=1 \
+python3 fairseq_cli/generate.py data-bin/multi30k_lbpe_con_words/bin --path save/CAMLMdadlbpe/checkpoint_best.pt --user-dir dad_plugins \
+    --task translation_lev --remove-bpe --max-sentences 20 --source-lang de --target-lang en \
+    --quiet --iter-decode-max-iter 0 --iter-decode-eos-penalty 0 --iter-decode-with-beam 1 --gen-subset test --results-path generation_save/CAMLMdadlbpe
+
+
+CUDA_VISIBLE_DEVICES=0 \
+fairseq-train /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/nihirref \
+		--task masked_lm --criterion masked_lm \
+		--arch bert_base \
+		--optimizer adam --adam-betas '(0.9,0.999)' --adam-eps 1e-6 --clip-norm 1.0 \
+		--lr-scheduler polynomial_decay --lr 3e-6 --warmup-updates 5000 --total-num-update 90000 \
+		--dropout 0.1 --weight-decay 0.01 \
+		--max-tokens 8192 \
+		--max-update 100000 --log-format simple --log-interval 1 --save-interval-updates 1000 \
+		--valid-subset valid \
+		--mask-prob 0.15 \
+		--random-token-prob 0.1 \
+		--skip-invalid-size-inputs-valid-test \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/multi30kBertEn_3e-6
+
+CUDA_VISIBLE_DEVICES=3 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 3e-5 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM3e-5
+
+CUDA_VISIBLE_DEVICES=4 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM3e-4
+		
+
+CUDA_VISIBLE_DEVICES=2 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 3e-6 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM3e-6
+
+
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4
+
+
+
+
+combination dad and camlm
+
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM \
+		--reset-optimizer --CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM3e-4/checkpoint_best.pt 
+
+CUDA_VISIBLE_DEVICES=4 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_3phases \
+		--reset-optimizer --CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM3e-4/checkpoint_best.pt \
+		--patience 10
+
+
+
+CUDA_VISIBLE_DEVICES=7 \
+python3 fairseq_cli/generate.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_con_words/bin \
+	--path /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/mul_con_words_1/checkpoint_best.pt --user-dir dad_plugins \
+    --task translation_lev --remove-bpe --max-sentences 20 --source-lang de --target-lang en \
+    --quiet --iter-decode-max-iter 0 --iter-decode-eos-penalty 0 --iter-decode-with-beam 1 --gen-subset test --results-path generation_save/dadtest
+
+
+
+CUDA_VISIBLE_DEVICES=4 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/mul_lbpe_words_1 \
+		--reset-optimizer \
+		--patience 10
+
+
+		--CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM3e-4/checkpoint_best.pt \
+		
+
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 5e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/mul_lbpe_words_2 \
+		--reset-optimizer \
+		--patience 5
+		
+
+CUDA_VISIBLE_DEVICES=3 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_con_words/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 5e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/mul_lbpe_con_words_2 \
+		--reset-optimizer \
+		--patience 5
+
+
+CUDA_VISIBLE_DEVICES=6 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin --arch vanilla_nat --noise full_mask --share-all-embeddings \
+    --criterion nat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev --max-tokens 4096 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 200 --max-target-positions 200 --max-update 300000 \
+    --save-dir ./save/dad_1phase --src-embedding-copy --pred-length-offset --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type nat --choose-data deenmul --input-transform \
+    --eval-bleu-print-samples \
+    --batch-size 64000 \
+    --reset-optimizer
+
+
+learned pos
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin --arch vanilla_nat --noise full_mask --share-all-embeddings \
+    --criterion nat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev --max-tokens 4096 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 200 --max-target-positions 200 --max-update 300000 \
+    --save-dir ./save/dad_1phase --src-embedding-copy --pred-length-offset --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type nat --choose-data deenmul --input-transform \
+    --eval-bleu-print-samples
+
+learned pos
+CUDA_VISIBLE_DEVICES=4 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin --arch vanilla_nat --noise full_mask --share-all-embeddings \
+    --criterion nat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev --max-tokens 4096 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 200 --max-target-positions 200 --max-update 300000 \
+    --save-dir ./save/mul_lbpe_words_1 --src-embedding-copy --pred-length-offset --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type nat --choose-data deenmul --input-transform \
+    --eval-bleu-print-samples --patience 10
+
+
+
+CUDA_VISIBLE_DEVICES=3 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM1e-4_pos
+
+CUDA_VISIBLE_DEVICES=6 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4_pos
+
+CUDA_VISIBLE_DEVICES=6 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin --arch vanilla_nat --noise full_mask --share-all-embeddings \
+    --criterion nat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev --max-tokens 4096 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 200 --max-target-positions 200 --max-update 300000 \
+    --save-dir ./save/mul_lbpe_words_1phase --src-embedding-copy --pred-length-offset --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type nat --choose-data deenmul --input-transform \
+    --eval-bleu-print-samples
+
+mul_lbpe_words_1phase = dadlbpe_1phase
+
+
+CUDA_VISIBLE_DEVICES=7 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLMLBPE_pos \
+		--reset-optimizer --CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4_pos/checkpoint_best.pt 
+
+
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_pos1 \
+		--reset-optimizer --CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM1e-4_pos/checkpoint_best.pt 
+	
+
+CUDA_VISIBLE_DEVICES=7 \
+python3 fairseq_cli/generate.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+	--path /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLMLBPE_pos_3phase_2/checkpoint_best.pt --user-dir dad_plugins \
+    --task translation_lev --remove-bpe --max-sentences 20 --source-lang de --target-lang en \
+    --quiet --iter-decode-max-iter 0 --iter-decode-eos-penalty 0 --iter-decode-with-beam 1 --gen-subset test --results-path generation_save/dadCAMLMLBPE_pos_3phase_2
+
+
+CUDA_VISIBLE_DEVICES=3 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin --arch vanilla_nat --noise full_mask --share-all-embeddings \
+    --criterion nat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev --max-tokens 4096 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 200 --max-target-positions 200 --max-update 300000 \
+    --save-dir ./save/dad_3phases --src-embedding-copy --pred-length-offset --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type at-forward --choose-data deenmul --input-transform \
+    --eval-bleu-print-samples \
+	--patience 15 \
+	--reset-optimizer 
+
+CUDA_VISIBLE_DEVICES=4 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_pos_3phases \
+		--reset-optimizer --CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM1e-4_pos/checkpoint_best.pt 
+
+
+CUDA_VISIBLE_DEVICES=4 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/mul_lbpe_words_3phase \
+		--reset-optimizer --patience 15
+
+
+CUDA_VISIBLE_DEVICES=7 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k_lbpe_words/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-5 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLMLBPE_pos_3phase_2 \
+		--CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLMLBPE1e-4_pos/checkpoint_best.pt \
+		--reset-optimizer --patience 10
+		
+		
+
+
+CUDA_VISIBLE_DEVICES=6 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type nat \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/dadCAMLM_pos_3phase_1 \
+		--CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM1e-4_pos/checkpoint_best.pt \
+		--reset-optimizer --patience 15
+
+
+
+CUDA_VISIBLE_DEVICES=7 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin \
+		--task translation_lev --criterion nat_loss --arch vanilla_nat --label-smoothing 0.1 \
+		--optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt --lr 3e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 --max-update 300000 --seed 0 \
+		--clip-norm 5 --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 \
+		--fp16 --apply-bert-init --activation-fn gelu --user-dir dad_plugins --src-embedding-copy \
+		--pred-length-offset --log-interval 1000 --noise full_mask --share-all-embeddings --choose-data deenmul \
+		--input-transform --eval-bleu-print-samples --warmup-init-lr 1e-7 --stop-min-lr 1e-9 --weight-decay 0.01 \
+		--eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+		--eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu --maximize-best-checkpoint-metric \
+		--eval-bleu-print-samples \
+		--curriculum-type at-forward \
+		--decoder-learned-pos --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/testspeed \
+		--CAMLMload /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save/CAMLM1e-4_pos/checkpoint_best.pt \
+		--reset-optimizer --patience 15 --model-parallel-size 4
+
+
+CUDA_VISIBLE_DEVICES=3 python3 train_with_seed.py -n dad_seed -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/mul_correct/bin
+
+Re:CUDA_VISIBLE_DEVICES=3 python3 train_with_seed_dad_CAMLM.py -n dadCAMLM_seed -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/mul_correct/bin
+
+CUDA_VISIBLE_DEVICES=3 python3 train_with_seed_dad_LBPE.py -n dadLBPE_seed -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/mul_lbpe_correct_1/bin
+
+CUDA_VISIBLE_DEVICES=3 python3 train_with_seed_dad_CAMLMLBPE.py -n dadCAMLMLBPE_seed -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/mul_lbpe_correct_1/bin
+
+
+
+CUDA_VISIBLE_DEVICES=7 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/mul_correct/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM \
+		--no-epoch-checkpoints --patience 20
+
+CUDA_VISIBLE_DEVICES=6 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/mul_lbpe_correct/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 200 --max-target-positions 200 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_LBPE \
+		--no-epoch-checkpoints --patience 5
+
+
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt_lbpe/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 512 --max-target-positions 512 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_wmt_lbpe \
+		--no-epoch-checkpoints --patience 10
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 1e-4 --warmup-updates 4000 --max-tokens 4096 \
+		--dropout 0.1 --max-source-positions 512 --max-target-positions 512 \
+		--max-update 300000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_wmt_1 \
+		--no-epoch-checkpoints --patience 4
+
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 python3 train_with_seed.py -i 1 -n wmt_dad_1 -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt/bin
+
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 python3 train_with_seed_dad_CAMLM.py -i 3 -n wmt_dad_CAMLM_1 -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt/bin
+
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 python3 train_with_seed_dad_LBPE.py -i 3 -n wmt_dad_LBPE_test -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt_lbpe/bin
+
+#--max-tokens 2048
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt_lbpe/bin \
+		--task CAMLM --criterion CAMLM_loss --arch CAMLM --optimizer adam --adam-betas '(0.9,0.999)' \
+		--adam-eps 1e-6 --lr-scheduler inverse_sqrt \
+		--lr 3e-4 --warmup-updates 4000 --max-tokens 2048 \
+		--dropout 0.1 --max-source-positions 512 --max-target-positions 512 \
+		--max-update 3000000 --seed 0 --clip-norm 5 --encoder-layers 6 \
+		--encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+		--apply-bert-init --activation-fn gelu --user-dir dad_plugins --warmup-init-lr 1e-7 \
+		--stop-min-lr 1e-9 --weight-decay 0.01 --encoder-learned-pos \
+		--save-dir /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_lbpe_wmt \
+		--no-epoch-checkpoints --patience 4
+
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 python3 train_with_seed_dad_CAMLMLBPE.py -i 3 -n wmt_dad_CAMLMLBPE -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt_lbpe/bin
+
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 python3 train_with_seed_dad_CAMLM_freeze.py -i 3 -n wmt_dad_CAMLM_freeze -d /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/wmt/bin
