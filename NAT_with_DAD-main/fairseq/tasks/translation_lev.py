@@ -221,6 +221,10 @@ class TranslationLevenshteinTask(TranslationTask):
             )
             if self.tokenizer:
                 s = self.tokenizer.decode(s)
+            #TODO: add lbpe (directly replace lbpe mark into None in s): s.replace("__1","")
+            if self.cfg.eval_bleu_remove_lbpe:
+                s = s.replace("_@1@_","")
+                #print("LBPE removed.")
             return s
 
         gen_out = self.inference_step(generator, [model], sample, prefix_tokens=None)
@@ -234,8 +238,10 @@ class TranslationLevenshteinTask(TranslationTask):
                 )
             )
         if self.cfg.eval_bleu_print_samples:
-            logger.info("example hypothesis: " + hyps[0])
-            logger.info("example reference: " + refs[0])
+            #logger.info("example hypothesis: " + hyps[0])
+            #logger.info("example reference: " + refs[0])
+            print("example hypothesis: " + hyps[0])
+            print("example reference: " + refs[0])
         if self.cfg.eval_tokenized_bleu:
             return sacrebleu.corpus_bleu(hyps, [refs], tokenize="none")
         else:
