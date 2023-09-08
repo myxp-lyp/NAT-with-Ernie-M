@@ -28,9 +28,9 @@ python3 fairseq_cli/preprocess.py --source-lang ${src} --target-lang ${tgt} --tr
     --validpref ${input_dir}/valid --testpref ${input_dir}/test --destdir ${data_dir}/ \
     --workers 32 --src-dict ${input_dir}/dict.${src}.txt --tgt-dict {input_dir}/dict.${tgt}.txt
 
-python3 fairseq_cli/preprocess.py --source-lang en --target-lang de --trainpref wmt14ende/train \
-    --validpref wmt14ende/valid --testpref wmt14ende/test --destdir wmt14ende/bin/ \
-    --workers 32 --srcdict data-bin/wmt14ende/dict.en.txt --tgtdict data-bin/wmt14ende/dict.de.txt
+python3 fairseq_cli/preprocess.py --source-lang de --target-lang en --trainpref data-bin/wmt14_ende_distill_ori/train \
+    --validpref data-bin/wmt14_ende_distill_ori/valid --testpref data-bin/wmt14_ende_distill_ori/test --destdir data-bin/wmt14_ende_distill_ori/bin/ \
+    --workers 32 --srcdict data-bin/wmt14_ende_distill_ori/dict.de.txt --tgtdict data-bin/wmt14_ende_distill_ori/dict.en.txt
  ```
  
 ## Model Training
@@ -53,6 +53,32 @@ python train.py ${data_dir} --arch vanilla_nat --noise full_mask --share-all-emb
     --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
     --curriculum-type nat --choose-data ende --input-transform
  ```
+
+dictionary file has been modified. Do care!!
+
+  ```
+CUDA_VISIBLE_DEVICES=5 \
+python3 train.py /data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/data-bin/multi30k/bin --arch vanilla_nat --noise full_mask --share-all-embeddings \
+    --criterion nat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev --max-tokens 8192 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 1000 --max-target-positions 1000 --max-update 300000 \
+    --save-dir ./save/wmt_ori_newadam_1 --src-embedding-copy --pred-length-offset --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type nat --choose-data deen --input-transform \
+    --eval-bleu-print-samples \
+    --batch-size 64000 \
+    --reset-optimizer
+
+    --update-freq 8 \
+    
+    --patience 10 \
+    
+ ```
 ### Training GLAT w/ DAD
 
 ```
@@ -69,6 +95,20 @@ python3 train.py ${data_dir} --arch glat --noise full_mask --share-all-embedding
     --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
     --curriculum-type nat --choose-data ende --input-transform
 ```
+
+CUDA_VISIBLE_DEVICES=0 \
+python3 train.py data-bin/wmt14_ende_distill_ori/bin --arch glat --noise full_mask --share-all-embeddings \
+    --criterion glat_loss --label-smoothing 0.1 --lr 5e-4 --warmup-init-lr 1e-7 --stop-min-lr 1e-9 \
+    --lr-scheduler inverse_sqrt --warmup-updates 4000 --optimizer adam --adam-betas '(0.9, 0.999)' \
+    --adam-eps 1e-6 --task translation_lev_modified --max-tokens 8192 --weight-decay 0.01 --dropout 0.1 \
+    --encoder-layers 6 --encoder-embed-dim 512 --decoder-layers 6 --decoder-embed-dim 512 --fp16 \
+    --max-source-positions 1000 --max-target-positions 1000 --max-update 300000 --seed 0 --clip-norm 5\
+    --save-dir ./save/wmt_glat --src-embedding-copy --length-loss-factor 0.05 --log-interval 1000 \
+    --eval-bleu --eval-bleu-args '{"iter_decode_max_iter": 0, "iter_decode_winth_beam": 1}' \
+    --eval-tokenized-bleu --eval-bleu-remove-bpe --best-checkpoint-metric bleu \
+    --maximize-best-checkpoint-metric --decoder-learned-pos --encoder-learned-pos \
+    --apply-bert-init --activation-fn gelu --user-dir dad_plugins \
+    --curriculum-type nat --choose-data deen --input-transform --eval-bleu-print-samples --reset-optimizer
 
 ### Inference
 * VanillaNAT w/ DAD
