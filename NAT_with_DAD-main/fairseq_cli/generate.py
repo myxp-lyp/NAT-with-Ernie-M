@@ -384,7 +384,12 @@ def _main(cfg: DictConfig, output_file):
                     if hasattr(scorer, "add_string"):
                         scorer.add_string(target_str, detok_hypo_str)
                     else:
+                        #remove lbpe
+                        #if cfg.remove_lbpe:
+                            #TODO
+                        #    print(1)
                         scorer.add(target_tokens, hypo_tokens)
+                        #print(1)
 
         # exit()
         wps_meter.update(num_generated_tokens)

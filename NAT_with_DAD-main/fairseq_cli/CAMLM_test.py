@@ -72,24 +72,18 @@ def main(cfg: FairseqConfig) -> None:
     # Setup task, e.g., translation, language modeling, etc.
     task = tasks.setup_task(cfg.task)
     # Load valid dataset (we load training data below, based on the latest checkpoint)
-    for valid_sub_split in cfg.dataset.valid_subset.split(","):
-        task.load_dataset(valid_sub_split, combine=False, epoch=1)
+    for test_sub_split in cfg.dataset.gen_subset.split(","):
+        task.load_dataset(test_sub_split, combine=False, epoch=1)
 
     assert cfg.criterion, "Please specify criterion to train a model"
 
     # Build model and criterion
-    model = task.build_model(cfg.model)
+   # model = task.build_model(cfg.model)
+    path = "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_lbpe_wmt/checkpoint_best.pt"
+    models,_ = checkpoint_utils.load_model_ensemble(utils.split_paths(path), task = task)
+    model = models[0]
     criterion = task.build_criterion(cfg.criterion)
-    logger.info(model)
-    logger.info("task: {}".format(task.__class__.__name__))
-    logger.info("model: {}".format(model.__class__.__name__))
-    logger.info("criterion: {}".format(criterion.__class__.__name__))
-    logger.info(
-        "num. model params: {:,} (num. trained: {:,})".format(
-            sum(p.numel() for p in model.parameters()),
-            sum(p.numel() for p in model.parameters() if p.requires_grad),
-        )
-    )
+    
 
     # (optionally) Configure quantization
     if cfg.common.quantization_config_path is not None:
@@ -107,32 +101,23 @@ def main(cfg: FairseqConfig) -> None:
     else:
         trainer = MegatronTrainer(cfg, task, model, criterion)
 
-    logger.info(
-        "training on {} devices (GPUs/TPUs)".format(
-            cfg.distributed_training.distributed_world_size
-        )
-    )
-    logger.info(
-        "max tokens per GPU = {} and batch size per GPU = {}".format(
-            cfg.dataset.max_tokens,
-            cfg.dataset.batch_size,
-        )
-    )
 
     # Load the latest checkpoint if one is available and restore the
     # corresponding train iterator
+    '''
     extra_state, epoch_itr = checkpoint_utils.load_checkpoint(
         cfg.checkpoint,
         trainer,
         # don't cache epoch iterators for sharded datasets
         disable_iterator_cache=task.has_sharded_data("train"),
     )
-
+    '''
     max_epoch = cfg.optimization.max_epoch or math.inf
-    lr = trainer.get_lr()
+    #lr = trainer.get_lr()
     train_meter = meters.StopwatchMeter()
     train_meter.start()
-    while epoch_itr.next_epoch_idx <= max_epoch:
+    while 1:#epoch_itr.next_epoch_idx <= max_epoch:
+        '''
         if lr <= cfg.optimization.stop_min_lr:
             logger.info(
                 f"stopping training because current learning rate ({lr}) is smaller "
@@ -140,6 +125,7 @@ def main(cfg: FairseqConfig) -> None:
                 f"(--stop-min-lr={cfg.optimization.stop_min_lr})"
             )
             break
+        '''
         # print("cfg.checkpoint.best_checkpoint_metric:", cfg.checkpoint.best_checkpoint_metric)
         # exit()
         # train for one epoch
@@ -148,11 +134,12 @@ def main(cfg: FairseqConfig) -> None:
         # valid_subsets = cfg.dataset.valid_subset.split(",")
         # valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets)
         # exit()
-
-        valid_losses, should_stop = train(cfg, trainer, task, epoch_itr)
-        if should_stop:
-            break
-
+        
+        test_subsets = cfg.dataset.gen_subset.split(",")
+        valid_losses = validate(cfg, trainer, task, test_subsets)
+        print(valid_losses[0])
+        break
+        '''
         # only use first validation loss to update the learning rate
         lr = trainer.lr_step(epoch_itr.epoch, valid_losses[0])
 
@@ -165,34 +152,7 @@ def main(cfg: FairseqConfig) -> None:
         )
     train_meter.stop()
     logger.info("done training in {:.1f} seconds".format(train_meter.sum))
-
-
-def should_stop_early(cfg: DictConfig, valid_loss: float) -> bool:
-    # skip check if no validation was done in the current epoch
-    if valid_loss is None:
-        return False
-    if cfg.checkpoint.patience <= 0:
-        return False
-
-    def is_better(a, b):
-        return a > b if cfg.checkpoint.maximize_best_checkpoint_metric else a < b
-
-    prev_best = getattr(should_stop_early, "best", None)
-    if prev_best is None or is_better(valid_loss, prev_best):
-        should_stop_early.best = valid_loss
-        should_stop_early.num_runs = 0
-        return False
-    else:
-        should_stop_early.num_runs += 1
-        if should_stop_early.num_runs >= cfg.checkpoint.patience:
-            logger.info(
-                "early stop since valid performance hasn't improved for last {} runs".format(
-                    cfg.checkpoint.patience
-                )
-            )
-            return True
-        else:
-            return False
+    '''
 
 
 @metrics.aggregate("train")
@@ -263,7 +223,8 @@ def train(
                 # the end-of-epoch stats will still be preserved
                 metrics.reset_meters("train_inner")
 
-        end_of_epoch = not itr.has_next()      
+        end_of_epoch = not itr.has_next()
+        
         valid_losses, should_stop = validate_and_save(
             cfg, trainer, task, epoch_itr, valid_subsets, end_of_epoch
         )
@@ -353,15 +314,10 @@ def validate_and_save(
     if do_validate:
         valid_losses = validate(cfg, trainer, task, epoch_itr, valid_subsets)
 
-    should_stop |= should_stop_early(cfg, valid_losses[0])
+    
 
     # Save checkpoint
-    if do_save or should_stop:
-        checkpoint_utils.save_checkpoint(
-            cfg.checkpoint, trainer, epoch_itr, valid_losses[0]
-        )
-
-    return valid_losses, should_stop
+    
 
 
 def get_training_stats(stats: Dict[str, Any]) -> Dict[str, Any]:
@@ -373,7 +329,7 @@ def validate(
         cfg: DictConfig,
         trainer: Trainer,
         task: tasks.FairseqTask,
-        epoch_itr,
+        #epoch_itr,
         subsets: List[str],
 ) -> List[Optional[float]]:
     """Evaluate the model on the validation set(s) and return the losses."""
@@ -382,10 +338,10 @@ def validate(
         # set fixed seed for every validation
         utils.set_torch_seed(cfg.dataset.fixed_validation_seed)
 
-    trainer.begin_valid_epoch(epoch_itr.epoch)
+    trainer.begin_valid_epoch(1)#epoch_itr.epoch)
     valid_losses = []
     for subset in subsets:
-        logger.info('begin validation on "{}" subset'.format(subset))
+        logger.info('begin valid on "{}" subset'.format(subset))
 
         # Initialize data iterator
         itr = trainer.get_valid_iterator(subset).next_epoch_itr(
@@ -397,7 +353,7 @@ def validate(
             itr,
             log_format=cfg.common.log_format,
             log_interval=cfg.common.log_interval,
-            epoch=epoch_itr.epoch,
+            epoch=1,#epoch_itr.epoch,
             prefix=f"valid on '{subset}' subset",
             tensorboard_logdir=(
                 cfg.common.tensorboard_logdir
@@ -451,42 +407,11 @@ def cli_main(
         modify_parser: Optional[Callable[[argparse.ArgumentParser], None]] = None
 ) -> None:
     parser = options.get_training_parser()
-    parser.add_argument("--generatedict", default=False, help="whether to generate filtered dict")
     args = options.parse_args_and_arch(parser, modify_parser=modify_parser)
 
     cfg = convert_namespace_to_omegaconf(args)
 
    
-    
-    #create filtered dict
-    if args.generatedict == "True":
-        task = tasks.setup_task(cfg.task)
-        for train_sub_split in cfg.dataset.train_subset.split(","):
-            task.load_dataset(train_sub_split, combine=False, epoch=1)
-        
-        filtered_dict = set()
-        for i in range(len(task.datasets['train'].tgt)):
-            if i % 5000 == 0:
-                print("have add "+str(i)+ " samples")
-            for j in task.datasets['train'].tgt.__getitem__(i):
-                # lbpe filtered dict
-                if '_@1@_' in task.tgt_dict.symbols[j]:
-                    filtered_dict.add(int(j))
-                
-                # normal filtered dict
-                #filtered_dict.add(int(j))
-        
-        with open ("/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/filtered_dict_new/train_deen_mul_correct_lbpe_1.dict", 'w') as f:
-            f.write('[')
-            judge =  0
-            for i in filtered_dict:
-                if judge == 0:
-                    f.write(str(i))
-                    judge = 1
-                f.write(', ' + str(i))
-            f.write(']')
-        exit()
-        
     if args.profile:
         with torch.cuda.profiler.profile():
             with torch.autograd.profiler.emit_nvtx():

@@ -7,6 +7,8 @@
 Train a new model on one or across multiple GPUs.
 """
 
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 import argparse
 import logging
 import math
@@ -66,32 +68,86 @@ def main(cfg: FairseqConfig) -> None:
     if distributed_utils.is_master(cfg.distributed_training):
         checkpoint_utils.verify_checkpoint_directory(cfg.checkpoint.save_dir)
 
-    # Print args
-    logger.info(cfg)
-
+    
     # Setup task, e.g., translation, language modeling, etc.
     task = tasks.setup_task(cfg.task)
     # Load valid dataset (we load training data below, based on the latest checkpoint)
     for valid_sub_split in cfg.dataset.valid_subset.split(","):
         task.load_dataset(valid_sub_split, combine=False, epoch=1)
-
-    assert cfg.criterion, "Please specify criterion to train a model"
-
-    # Build model and criterion
-    model = task.build_model(cfg.model)
+        
     criterion = task.build_criterion(cfg.criterion)
-    logger.info(model)
-    logger.info("task: {}".format(task.__class__.__name__))
-    logger.info("model: {}".format(model.__class__.__name__))
-    logger.info("criterion: {}".format(criterion.__class__.__name__))
-    logger.info(
-        "num. model params: {:,} (num. trained: {:,})".format(
-            sum(p.numel() for p in model.parameters()),
-            sum(p.numel() for p in model.parameters() if p.requires_grad),
-        )
-    )
-
+    #path = "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new_seed/wmt_dad_CAMLM_1-0/checkpoint_best.pt"
+    path = "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new_seed/wmt_dad-2/checkpoint_best.pt"
+    models,_ = checkpoint_utils.load_model_ensemble(utils.split_paths(path), task = task)
+    model = models[0]
+    encoder = model.encoder.embed_tokens
+    #CAMLM validation pure only
+   # encoder = model.encoder
+   # encoder = checkpoint_utils.load_pretrained_component_from_model(component = encoder, checkpoint = "/data/yl7622/NAT-with-Ernie-M/NAT_with_DAD-main/save_new/CAMLM_wmt/checkpoint_best.pt")
+   # encoder = encoder.embed_tokens
+    #models1,_ = checkpoint_utils.load_model_ensemble(utils.split_paths(path1), task = task)
+    #model1 = models1[0]
+    #encoder1 = model1.encoder.embed_tokens
+    token_id_src = []
+    token_id_tgt = []
+    token_src = []
+    token_tgt = []
+    for i in range(3):
+        for j in task.datasets['valid'].src.__getitem__(i):
+            if j in token_id_src or task.tgt_dict[j][-1]=='@':
+                continue
+            token_id_src.append(j)
+            token_src.append(task.tgt_dict[j])
+    for i in range(3):
+        for j in task.datasets['valid'].tgt.__getitem__(i):
+            if j in token_id_tgt or task.tgt_dict[j][-1]=='@':
+                continue
+            token_id_tgt.append(j)
+            token_tgt.append(task.tgt_dict[j])    
+    token_id_src = torch.LongTensor(token_id_src)
+    token_id_tgt = torch.LongTensor(token_id_tgt)
+    embedding_src = encoder(token_id_src)
+    embedding_tgt = encoder(token_id_tgt)
+    #embedding1 = encoder1(token_id)
+    tsne = TSNE(n_components=2, random_state=6)
+    #token.index('disempowered')
     # (optionally) Configure quantization
+    embedding_src = embedding_src.detach().numpy()
+    embedding_tgt = embedding_tgt.detach().numpy()
+    #embedding1 = embedding1.detach().numpy()
+    Y = tsne.fit_transform(embedding_src)
+    Y2 = tsne.fit_transform(embedding_tgt)
+    
+    
+    
+    for xx in range(len(token_id_src)):
+        plt.scatter(Y[xx, 0], Y[xx, 1], color = 'blue')
+        #plt.scatter(Y2[xx, 0], Y2[xx, 1], color = 'red')
+        plt.annotate(token_src[xx], xy=(Y[xx, 0],Y[xx, 1]), xytext=(0,0), textcoords='offset points')
+        #plt.annotate(token[xx], xy=(Y2[xx, 0],Y2[xx, 1]), xytext=(0,0), textcoords='offset points')
+    for xx in range(len(token_id_tgt)):
+        #plt.scatter(Y[xx, 0], Y[xx, 1], color = 'blue')
+        plt.scatter(Y2[xx, 0], Y2[xx, 1], color = 'red')
+        #plt.annotate(token_src[xx], xy=(Y[xx, 0],Y[xx, 1]), xytext=(0,0), textcoords='offset points')
+        plt.annotate(token_tgt[xx], xy=(Y2[xx, 0],Y2[xx, 1]), xytext=(0,0), textcoords='offset points')
+    #plt.savefig('DAD.png')
+    #plt.savefig('CAMLM1.png')
+    plt.savefig('CAMLM_pure.png')
+    plt.show()
+    #plt.clf()
+    #for xx in token_id:
+        #plt.scatter(Y[xx, 0], Y[xx, 1], color = 'blue')
+      #  plt.scatter(Y2[xx, 0], Y2[xx, 1], color = 'red')
+        #plt.annotate(token[xx], xy=(Y[xx, 0],Y[xx, 1]), xytext=(0,0), textcoords='offset points')
+       # plt.annotate(token[xx], xy=(Y2[xx, 0],Y2[xx, 1]), xytext=(0,0), textcoords='offset points')
+    #plt.savefig('CAMLM.png')
+    #plt.show()
+    #plt.xlim((0,4))
+    #plt.ylim((0,4))
+    #plt.legend()#title = ('DAD','CAMLM'))
+    #plt.savefig('Comparison.png')
+    #plt.show()
+    exit()
     if cfg.common.quantization_config_path is not None:
         quantizer = quantization_utils.Quantizer(
             config_path=cfg.common.quantization_config_path,
