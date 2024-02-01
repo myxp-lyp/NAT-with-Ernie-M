@@ -1,0 +1,4 @@
+/data/yl7622/NAT-with-Ernie-M/data/wmt16/en-ro/fast_align/build/CMakeFiles/fast_align.dir
+/data/yl7622/NAT-with-Ernie-M/data/wmt16/en-ro/fast_align/build/CMakeFiles/atools.dir
+/data/yl7622/NAT-with-Ernie-M/data/wmt16/en-ro/fast_align/build/CMakeFiles/edit_cache.dir
+/data/yl7622/NAT-with-Ernie-M/data/wmt16/en-ro/fast_align/build/CMakeFiles/rebuild_cache.dir
