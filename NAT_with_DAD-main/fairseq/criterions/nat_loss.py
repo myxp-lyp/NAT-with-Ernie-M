@@ -10,14 +10,17 @@ import torch.nn.functional as F
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
 from torch import Tensor
-
+import json
 
 @register_criterion("nat_loss")
 class LabelSmoothedDualImitationCriterion(FairseqCriterion):
     def __init__(self, task, label_smoothing):
         super().__init__(task)
         self.label_smoothing = label_smoothing
-
+        self.word_align={}
+        
+            
+    
     @staticmethod
     def add_args(parser):
         """Add criterion-specific arguments to the parser."""
@@ -77,6 +80,22 @@ class LabelSmoothedDualImitationCriterion(FairseqCriterion):
     def _custom_loss(self, loss, name="loss", factor=1.0):
         return {"name": name, "loss": loss, "factor": factor}
 
+    def create_word(self, a):
+        
+        rows, cols = a.size()
+        b = torch.empty(rows, cols, dtype=torch.int64, device='cuda:0')
+
+        # Map elements from a to b using the provided mapping
+        for i in range(rows):
+            for j in range(cols):
+                element = a[i, j].item()  # Convert tensor element to Python scalar
+                # Check if the element is in the keys of the mapping
+                if element in self.word_align:
+                    b[i, j] = self.word_align[element]
+                else:
+                    b[i, j] = 3
+
+        return b
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
         Returns a tuple with three elements:
@@ -85,7 +104,13 @@ class LabelSmoothedDualImitationCriterion(FairseqCriterion):
         3) logging outputs to display while training
         """
         nsentences, ntokens = sample["nsentences"], sample["ntokens"]
-
+        if not self.word_align:
+            with open('/data/yl7622/NAT-with-Ernie-M/data/wmt16/en-ro/fast_align/build/word_mapping.json', 'r', encoding='utf-8') as json_file:
+                data = json.load(json_file)
+            for key, value in data.items():
+                if key in self.task.src_dict.indices.keys() and value in self.task.src_dict.indices.keys():
+                    self.word_align[self.task.src_dict.indices[key]] = self.task.src_dict.indices[value]
+                    
         # B x T
         src_tokens, src_lengths = (
             sample["net_input"]["src_tokens"],
@@ -120,9 +145,28 @@ class LabelSmoothedDualImitationCriterion(FairseqCriterion):
             if outputs[obj].get("nll_loss", False):
                 nll_loss += [_losses.get("nll_loss", 0.0)]
 
+        sample['aligned_word'] = self.create_word(src_tokens)
+        
+        if outputs['word_ins'].get("out").shape[1] < sample['aligned_word'].shape[1]:
+            sample['aligned_word'] = sample['aligned_word'][:, :outputs['word_ins'].get("out").shape[1]]
+        else:
+            default_values = torch.full((outputs['word_ins'].get("out").shape[0], outputs['word_ins'].get("out").shape[1] - sample['aligned_word'].shape[1]), 3,dtype=torch.int64, device='cuda:0')
+            sample['aligned_word'] = torch.cat((sample['aligned_word'], default_values), dim=1)
+        
+        mask = (sample['aligned_word'] != 3)
+        
+        
+        
+        _losses2 = self._compute_loss(
+                    outputs['word_ins'].get("out"),
+                    sample['aligned_word'],
+                    mask,
+                )
+        
         loss = sum(l["loss"] for l in losses)
+        loss += _losses2['loss']
         nll_loss = sum(l for l in nll_loss) if len(nll_loss) > 0 else loss.new_tensor(0)
-
+        nll_loss += _losses2['nll_loss']
         # NOTE:
         # we don't need to use sample_size as denominator for the gradient
         # here sample_size is just used for logging
