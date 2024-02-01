@@ -13,7 +13,7 @@ Easy instructions when you rerun the codes to get the results:
 5. Set break points when you want to test the loss and use CAMLM_loss.
 6. Use command --CAMLM-load to set the CAMLM component you wish to replace
 7. Use patience to avoid overfitting
-8. CAMLM refined work for word alignment methods are from fast align. All code files in are in build folder.
+8. CAMLM refined work for word alignment methods are from fast align. All code files in are in build folder. nat_loss.py is rewritten for suit word alignment supervision training.
 9. Data augmentation (others) is to retrain a larger vocab BPE.
 
     
